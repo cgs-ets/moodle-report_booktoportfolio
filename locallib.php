@@ -28,7 +28,7 @@ function report_booktoportfolio_convert($cm, $modcontext) {
     global $DB;
 
     $book = report_booktoportfolio_get_book($cm);
-    $bookchapters = report_booktoportfolio_get_chapters($book->id);
+    list($bookchapters, $chapternumber) = report_booktoportfolio_get_chapters($book->id);
 
     $portfolio                  = new stdClass();
     $portfolio->course          = $cm->course;
@@ -39,6 +39,7 @@ function report_booktoportfolio_convert($cm, $modcontext) {
     $portfolio->revision        = 1;
     $portfolio->timecreated     = $book->timecreated;
     $portfolio->timemodified    = $book->timemodified;
+    $portfolio->chapternumber   = $chapternumber;
 
     // Insert giportfolio.
     $newportfolioid     = $DB->insert_record('giportfolio', $portfolio, true, true);
@@ -56,11 +57,12 @@ function report_booktoportfolio_convert($cm, $modcontext) {
         $chapteridsmap[$bookchapterid] = $DB->insert_record('giportfolio_chapters', $chapter, true, true);
     }
 
-    // Copy images.
-    report_booktoportfolio_get_images($modcontext, $chapteridsmap);
-
     // We need to create the entry to the course_module table.
     list($cmid, $section) = report_booktoportfolio_set_new_portfolio_course_module($cm, $book->id, $newportfolioid);
+
+    // Copy images.
+    report_booktoportfolio_get_images($modcontext, $chapteridsmap, $cm->course, $newportfolioid, $cmid);
+
     // Add the portfolio to the section.
     course_add_cm_to_section($cm->course, $cmid, $section, $cm->id);
 
@@ -126,23 +128,43 @@ function report_booktoportfolio_get_chapters($bookid) {
     $sql      = "SELECT * FROM mdl_book_chapters where bookid = ?";
     $params   = ['bookid' => $bookid];
     $chapters = $DB->get_records_sql($sql, $params);
-
-    return $chapters;
+    $subchapters = 0;
+    foreach ($chapters as $chapter) {
+        if ($chapter->subchapter) {
+            $subchapters++;
+        }
+    }
+    $numberofchapters = count($chapters) - $subchapters;
+    return [$chapters, $numberofchapters];
 
 }
 
-function report_booktoportfolio_get_images($context, $chapteridsmap) {
+/**
+ * @context : book context
+ */
+function report_booktoportfolio_get_images($context, $chapteridsmap, $courseid, $newportfolioid, $porfoliocmid) {
     $fs = get_file_storage();
-    $component = 'mod_book';
-    $filearea = 'chapter';
-    // Iteamid = chapter id.
+    $portfoliocontext = context_module::instance($porfoliocmid);
+    // Get the intro files first.
+    if ($files = $fs->get_area_files($context->id, 'mod_book', 'intro', 0, true)) {
+
+        foreach ($files as $file) {
+            $newfile = new stdClass();
+            $newfile->contextid = $portfoliocontext->id;
+            $newfile->component = 'mod_giportfolio';
+            $newfile->filearea = 'intro';
+            $fs->create_file_from_storedfile($newfile, $file);
+        }
+    }
 
     foreach ($chapteridsmap as $bookchapterid => $portfoliochapterid) {
-        if ($files = $fs->get_area_files($context->id, $component, $filearea, $bookchapterid, "filename", true)) {
+        if ($files = $fs->get_area_files($context->id, 'mod_book', 'chapter', $bookchapterid, "filename", true)) {
             foreach ($files as $file) {
                 $newrecord = new \stdClass();
-                $newrecord->itemid = $portfoliochapterid; // Is the contribution id.
+                $newrecord->itemid = $portfoliochapterid;
                 $newrecord->component = 'mod_giportfolio';
+                $newrecord->contextid = $portfoliocontext->id;
+                $newrecord->filearea = 'chapter';
                 $fs->create_file_from_storedfile($newrecord, $file);
             }
         }

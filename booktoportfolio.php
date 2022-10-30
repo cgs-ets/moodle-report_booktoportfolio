@@ -42,5 +42,4 @@ $modcontext = context_module::instance($cm->id);
 
 require_capability('mod/giportfolio:gradegiportfolios', $modcontext);
 
-
 $data = report_booktoportfolio_convert($cm, $modcontext);
