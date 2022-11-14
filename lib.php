@@ -28,7 +28,7 @@
  */
 function report_booktoportfolio_extend_navigation_module(navigation_node $navigation, cm_info $cm) {
     $context = context_module::instance($cm->id);
-    if ($cm->modname == 'book' && has_capability('moodle/grade:edit', $context)) {
+    if ($cm->modname == 'book' && has_capability('moodle/grade:export', $context)) {
         $url = $url = new moodle_url('/report/booktoportfolio/booktoportfolio.php', array('id' => $cm->course, 'modid' => $cm->id));
         $navigation->add(get_string('pluginname', 'report_booktoportfolio'), $url, navigation_node::TYPE_SETTING, null,
         'booktoportfolio');
