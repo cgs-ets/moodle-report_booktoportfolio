@@ -2,6 +2,9 @@
 
 This plugin allows a teacher to generate a giportfolio module based on a book module.
 
+![](/screenshots/button1.JPG)
+
+![](/screenshots/Result.png)
 
 ## Installing via uploaded ZIP file ##
 
